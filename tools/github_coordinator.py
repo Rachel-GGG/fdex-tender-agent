@@ -215,7 +215,8 @@ def current_review(api, pr):
     latest = {}
     for review in api.pages(f"pulls/{pr['number']}/reviews"):
         who = review["user"]["login"]
-        if who == pr["user"]["login"] or who not in ("iurp", "xiao8-agent"):
+        bot_review = who == "github-actions[bot]" and review.get("body", "").startswith(f"<!-- fdex-codex-review:{pr['head']['sha']} -->")
+        if who == pr["user"]["login"] or (who not in ("iurp", "xiao8-agent") and not bot_review):
             continue
         if review.get("commit_id") == pr["head"]["sha"] and review["state"] in ("APPROVED", "CHANGES_REQUESTED", "DISMISSED"):
             latest[who] = review["state"]

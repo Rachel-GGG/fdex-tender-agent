@@ -75,6 +75,22 @@ class GovernanceTests(unittest.TestCase):
         self.assertEqual(coordinator.linked_issue("Closes #12\n\n真实验证"), 12)
         self.assertIsNone(coordinator.linked_issue("可能涉及 #12 或其他事项"))
 
+    def test_old_head_review_not_current_approval(self):
+        api = type("API", (), {"pages": lambda self, path: [{"user": {"login": "iurp"}, "state": "APPROVED", "commit_id": "old"}]})()
+        pr = {"number": 1, "user": {"login": "learner"}, "head": {"sha": "new"}}
+        self.assertFalse(coordinator.current_review(api, pr))
+
+    def test_author_approval_is_not_independent(self):
+        api = type("API", (), {"pages": lambda self, path: [{"user": {"login": "iurp"}, "state": "APPROVED", "commit_id": "new"}]})()
+        pr = {"number": 1, "user": {"login": "iurp"}, "head": {"sha": "new"}}
+        self.assertFalse(coordinator.current_review(api, pr))
+
+    def test_current_changes_requested_blocks_approval(self):
+        rows = [{"user": {"login": "iurp"}, "state": "APPROVED", "commit_id": "new"}, {"user": {"login": "xiao8-agent"}, "state": "CHANGES_REQUESTED", "commit_id": "new"}]
+        api = type("API", (), {"pages": lambda self, path: rows})()
+        pr = {"number": 1, "user": {"login": "learner"}, "head": {"sha": "new"}}
+        self.assertFalse(coordinator.current_review(api, pr))
+
 
 if __name__ == "__main__":
     unittest.main()

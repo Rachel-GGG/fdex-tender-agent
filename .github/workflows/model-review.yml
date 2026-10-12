@@ -1,0 +1,66 @@
+name: Hosted model review
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+permissions:
+  contents: read
+jobs:
+  analyze:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      ready: ${{ steps.prepare.outputs.ready }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - id: prepare
+        run: python tools/review_worker.py prepare
+        env:
+          HAS_REVIEW_KEY: ${{ secrets.OPENAI_API_KEY != '' }}
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: Independent read-only Codex review
+        if: steps.prepare.outputs.ready == 'true'
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: review-prompt.md
+          output-file: review-result.json
+          sandbox: read-only
+          safety-strategy: drop-sudo
+          allow-users: '*'
+          codex-args: '["--output-schema", ".github/review/output.schema.json", "--ephemeral"]'
+      - uses: actions/upload-artifact@v4
+        if: steps.prepare.outputs.ready == 'true'
+        with:
+          name: independent-review-result
+          path: |
+            review-metadata.json
+            review-result.json
+  publish:
+    needs: analyze
+    if: needs.analyze.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      statuses: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: independent-review-result
+      - run: python tools/review_worker.py publish
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+

@@ -12,18 +12,20 @@
 | PR任务校验 | 只执行main的可信代码、检查认领和绑定 | contribution状态检查 |
 | 审查请求 | PR更新自动加入needs-maintainer-review | 这是排队请求，不等于模型已执行 |
 | 当前提交批准后合并 | PR coordinator重新读SHA、审查与CI，再按分支保护合并 | 常规学员PR；作者不能批准自己 |
-| Codex自动审查 | 当前本机任务的仓库监控作为先行入口 | 依赖本机Codex/联网在线，按实际监控配置运行 |
-| GitHub托管的模型审查 | 后续可接Codex Action或独立webhook worker | 新仓库尚无OPENAI_API_KEY；未冒充已运行 |
+| Codex自动审查 | 当前本机任务的仓库监控作为先行入口 | 每3分钟检查，依赖本机Codex/联网在线；学生代码只在隔离CI执行 |
+| GitHub托管的模型审查 | model-review.yml与独立只读Codex Action | 入口已实现；尚无OPENAI_API_KEY，未调用模型；大改/核心文件/二进制交维护者 |
 | 业务确认/正式部署 | 原始记录、哈希与具名责任人 | 不从工程合并自动产生 |
 
 ## 为什么没有等待新密钥
 
 GitHub内置token足够完成任务协调、CI、状态更新与合并门禁。模型审查可以先由已登录的Codex维护入口承担；将来需要全天托管、按事件即时执行时，再接入指定服务。现阶段本机监控的延迟和在线条件要明确。
 
-托管Codex Action按官方说明需要API密钥：[官方文档](https://learn.chatgpt.com/docs/github-action)。不要把个人ChatGPT登录凭据复制到公开仓库或Actions日志。使用已有GitHub身份只授予此项目所需操作。
+托管Codex Action按官方说明需要API密钥：[官方文档](https://learn.chatgpt.com/docs/github-action)。新仓库Secret配置OPENAI_API_KEY后，CI完成事件可启动已准备的只读审查，随后另一作业发布当前SHA的结构化结果。模型作业没有仓库写权限、不运行PR代码；发布作业没有模型密钥。当前密钥为空，因此没有声称托管模型已实测成功。
+
+不要把个人ChatGPT登录凭据复制到公开仓库或Actions日志。使用已有GitHub身份只授予此项目所需操作。首次fork运行需要审批时，由维护入口检查后批准隔离CI，学员不必请Zephyr点GitHub。
 
 ## 合并条件
 
-main为目标；任务负责人/协作者绑定正确；test成功；当前提交得到iurp或已授权独立审查者批准；没有当前阻塞意见；可以与最新main整合。核心文件由CODEOWNERS请求审查。
+main为目标；任务负责人/协作者绑定正确；test成功；当前提交得到iurp、已授权独立审查者或可信托管审查流程批准；没有当前阻塞意见；可以与最新main整合。核心文件仍由CODEOWNERS指定owner审查，托管模型不自动批准这些文件。
 
 CI成功只是工程证据。正常样例、Word实际查看、WorkBuddy实机运行和业务确认分别记录。高风险权限、真实交易、目标变化或超范围功能不自动推进。
