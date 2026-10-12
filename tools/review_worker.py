@@ -3,8 +3,9 @@
 import argparse
 import json
 import os
+import time
 from pathlib import Path
-from github_coordinator import GitHub, contribution, linked_issue
+from github_coordinator import GitHub, contribution, linked_issue, auto_merge
 
 
 def output(key, value):
@@ -24,7 +25,7 @@ def prepare():
     if not pr or not contribution(api, pr)[0]:
         return
     files = api.pages(f"pulls/{pr['number']}/files")
-    protected = (".github/", "tools/", "schemas/", "templates/", "AGENTS.md", "src/fdex_tender/core.py", "src/fdex_tender/pipeline.py")
+    protected = (".github/", "tools/", "schemas/", "templates/", "AGENTS.md", "docs/requirements", "src/fdex_tender/core.py", "src/fdex_tender/pipeline.py")
     if len(files) > 40 or sum(f["changes"] for f in files) > 2000 or any(f["filename"].startswith(protected) for f in files):
         print("Large or owner-controlled change requires named maintainer review.")
         return
@@ -54,7 +55,7 @@ def publish():
     if verdict not in ("APPROVE", "CHANGES_REQUESTED", "NEEDS_HUMAN") or not isinstance(result.get("summary"), str) or not isinstance(result.get("findings"), list):
         raise ValueError("Malformed review result; no approval published")
     pr = api.get(f"pulls/{meta['pr_number']}")
-    if pr["head"]["sha"] != meta["head_sha"] or pr["base"]["sha"] != meta["base_sha"] or not contribution(api, pr)[0]:
+    if pr["state"] != "open" or pr.get("draft") or pr["base"]["ref"] != "main" or pr["head"]["sha"] != meta["head_sha"] or pr["base"]["sha"] != meta["base_sha"] or not contribution(api, pr)[0]:
         print("Review inputs drifted; no stale approval published.")
         return
     findings = result["findings"]
@@ -69,9 +70,16 @@ def publish():
     event = "APPROVE" if verdict == "APPROVE" else "REQUEST_CHANGES" if verdict == "CHANGES_REQUESTED" else "COMMENT"
     api.write("POST", f"pulls/{pr['number']}/reviews", {"commit_id": meta["head_sha"], "event": event, "body": body})
     api.write("POST", f"statuses/{meta['head_sha']}", {"context": "hosted-ai-review", "state": "success" if verdict == "APPROVE" else "failure" if verdict == "CHANGES_REQUESTED" else "pending", "description": "Independent model review of current source revision"})
+    # GITHUB_TOKEN-authored reviews do not trigger another workflow; reconcile here.
+    if verdict == "APPROVE":
+        for attempt in range(5):
+            auto_merge(api, pr["number"])
+            if api.get(f"pulls/{pr['number']}")["state"] != "open":
+                break
+            if attempt < 4:
+                time.sleep(3)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(); parser.add_argument("mode", choices=("prepare", "publish"))
     prepare() if parser.parse_args().mode == "prepare" else publish()
-

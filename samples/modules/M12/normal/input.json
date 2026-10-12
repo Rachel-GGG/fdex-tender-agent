@@ -34,11 +34,13 @@
       "id": "PRICE-03",
       "quantity": "10",
       "unit_price": "12.50",
-      "tax_rate": null,
-      "tax_mode": null,
+      "tax_rate": "0.13",
+      "tax_mode": "inclusive",
       "rounding": "ROUND_HALF_UP",
       "digits": 2,
-      "ceiling": "100.00"
+      "ceiling": "150.00"
     }
-  ]
+  ],
+  "rounding_stage": "LINE_THEN_TOTAL",
+  "note": "先舍入分项，再按明确税费口径汇总；review与abnormal目录另供缺口与超限输入。"
 }

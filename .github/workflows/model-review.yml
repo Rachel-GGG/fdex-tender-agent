@@ -48,7 +48,7 @@ jobs:
     if: needs.analyze.outputs.ready == 'true'
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       pull-requests: write
       issues: write
       statuses: write
@@ -63,4 +63,3 @@ jobs:
       - run: python tools/review_worker.py publish
         env:
           GITHUB_TOKEN: ${{ github.token }}
-

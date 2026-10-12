@@ -1,0 +1,1 @@
+{"schema_version":"bid-training.module-fixture.v1","module":"M12","source_mode":"DEMO","project_id":"DEMO-BID-001","lot_id":"LOT-001","quantity":"10","unit_price":"12.50","tax_rate":"0.06","tax_mode":"exclusive","rounding_stage":"LINE_THEN_TOTAL","rounding":"ROUND_HALF_UP","digits":2,"ceiling":"100.00","expected_boundary":"按给定规则含税总价132.50，超出限价，不进入放行；这不是业务批准报价。"}

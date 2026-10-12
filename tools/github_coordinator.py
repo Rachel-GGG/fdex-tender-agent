@@ -192,6 +192,8 @@ def contribution(api, pr):
     item = api.get(f"issues/{number}")
     if not task_meta(item):
         return False, "关联Issue不是本项目的任务。"
+    if item["state"] != "open":
+        return False, "关联任务已关闭，请领取新的任务或请维护者明确重新开放。"
     _, state = state_from(api.pages(f"issues/{number}/comments"))
     actor = pr["user"]["login"]
     if actor not in [state.get("owner")] + state.get("collaborators", []) and not api.manager(actor):

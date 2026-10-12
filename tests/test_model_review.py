@@ -18,7 +18,7 @@ class FakeGitHub:
         self.writes = []
         self.head = "abc"
     def get(self, path):
-        return {"number": 1, "head": {"sha": self.head}, "base": {"sha": "base"}}
+        return {"number": 1, "state": "closed" if getattr(self, "merged", False) else "open", "head": {"sha": self.head}, "base": {"sha": "base", "ref": "main"}}
     def write(self, *args):
         self.writes.append(args)
 
@@ -33,7 +33,7 @@ class ModelPublicationTests(unittest.TestCase):
         os.chdir(self.old); self.temp.cleanup()
     def publish(self):
         Path("review-result.json").write_text(json.dumps(self.result))
-        with patch.object(worker, "GitHub", return_value=self.api), patch.object(worker, "contribution", return_value=(True, "ok")):
+        with patch.object(worker, "GitHub", return_value=self.api), patch.object(worker, "contribution", return_value=(True, "ok")), patch.object(worker, "auto_merge", side_effect=lambda api, number: setattr(api, "merged", True)):
             worker.publish()
     def test_current_result_publishes_bound_review(self):
         self.publish()
