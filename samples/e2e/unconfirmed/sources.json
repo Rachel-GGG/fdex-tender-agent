@@ -1,0 +1,76 @@
+{
+  "sources": [
+    {
+      "source_id": "SRC-TENDER",
+      "relative_path": "tender/tender.md",
+      "kind": "tender_markdown",
+      "version": "1.0",
+      "public": true,
+      "project_id": "DEMO-BID-001",
+      "lot_id": "LOT-001"
+    },
+    {
+      "source_id": "SRC-PERSON-01",
+      "relative_path": "materials/person-01.md",
+      "kind": "person_sidecar",
+      "version": "1.0",
+      "public": true
+    },
+    {
+      "source_id": "SRC-CERT-01",
+      "relative_path": "materials/cert-01.png",
+      "kind": "certificate_image",
+      "version": "1.0",
+      "public": true
+    },
+    {
+      "source_id": "SRC-PERSON-02",
+      "relative_path": "materials/person-02.md",
+      "kind": "person_sidecar",
+      "version": "1.0",
+      "public": true
+    },
+    {
+      "source_id": "SRC-CERT-02",
+      "relative_path": "materials/cert-02.png",
+      "kind": "certificate_image",
+      "version": "1.0",
+      "public": true
+    },
+    {
+      "source_id": "SRC-PERSON-03",
+      "relative_path": "materials/person-03.md",
+      "kind": "person_sidecar",
+      "version": "1.0",
+      "public": true
+    },
+    {
+      "source_id": "SRC-CERT-03",
+      "relative_path": "materials/cert-03.png",
+      "kind": "certificate_image",
+      "version": "1.0",
+      "public": true
+    },
+    {
+      "source_id": "SRC-PERSON-04",
+      "relative_path": "materials/person-04.md",
+      "kind": "person_sidecar",
+      "version": "1.0",
+      "public": true
+    },
+    {
+      "source_id": "SRC-CERT-04",
+      "relative_path": "materials/cert-04.png",
+      "kind": "certificate_image",
+      "version": "1.0",
+      "public": true
+    },
+    {
+      "source_id": "SRC-TEMPLATE",
+      "relative_path": "template/personnel-v1.docx",
+      "kind": "template",
+      "version": "1.0",
+      "public": true
+    }
+  ]
+}

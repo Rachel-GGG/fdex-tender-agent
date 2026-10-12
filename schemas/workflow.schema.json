@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "bid-training.workflow.v1",
+  "type": "object",
+  "required": ["schema_version", "module", "run_id", "project_id", "lot_id", "source_mode", "processing_status", "input_refs", "scope", "issues", "data", "next_actions"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": "bid-training.workflow.v1"},
+    "module": {"pattern": "^(M(0[1-9]|1[0-8])|X01)$", "type": "string"},
+    "run_id": {"type": "string", "minLength": 1},
+    "project_id": {"type": "string", "minLength": 1},
+    "lot_id": {"type": "string", "minLength": 1},
+    "source_mode": {"const": "DEMO"},
+    "processing_status": {"enum": ["COMPLETE", "REVIEW", "BLOCKED"]},
+    "input_refs": {"type": "array", "items": {"type": "object", "required": ["source_id", "relative_path", "version", "sha256"], "properties": {"source_id": {"type": "string"}, "relative_path": {"type": "string"}, "version": {"type": "string"}, "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}}},
+    "scope": {"type": "object", "required": ["included", "excluded"], "properties": {"included": {"type": "array", "items": {"type": "string"}}, "excluded": {"type": "array", "items": {"type": "string"}}}},
+    "issues": {"type": "array", "items": {"type": "object", "required": ["issue_id", "code", "severity", "object_id", "message", "evidence_refs", "owner_role", "next_action"], "properties": {"issue_id": {"type": "string"}, "code": {"type": "string"}, "severity": {"enum": ["BLOCKER", "MAJOR", "MINOR"]}, "object_id": {"type": "string"}, "message": {"type": "string"}, "evidence_refs": {"type": "array"}, "owner_role": {"type": "string"}, "next_action": {"type": "string"}}}},
+    "data": {"type": "object"},
+    "next_actions": {"type": "array", "items": {"type": "object", "required": ["owner_role", "action"], "properties": {"owner_role": {"type": "string"}, "action": {"type": "string"}}}}
+  },
+  "allOf": [
+    {"if": {"properties": {"module": {"const": "M04"}}}, "then": {"properties": {"data": {"required": ["requirements", "coverage", "personnel_rule"]}}}},
+    {"if": {"properties": {"module": {"const": "M07"}}}, "then": {"properties": {"data": {"required": ["responses", "template", "coverage"]}}}},
+    {"if": {"properties": {"module": {"const": "M08"}}}, "then": {"properties": {"data": {"required": ["persons", "assets", "reading_boundary"]}}}},
+    {"if": {"properties": {"module": {"const": "M09"}}}, "then": {"properties": {"data": {"required": ["candidates", "confirmation", "selected", "selection_digest"]}}}},
+    {"if": {"properties": {"module": {"const": "M13"}}}, "then": {"properties": {"data": {"required": ["artifact_status", "files", "trace"]}}}},
+    {"if": {"properties": {"module": {"const": "M14"}}}, "then": {"properties": {"data": {"required": ["review_status", "file_sha256", "checks", "coverage"]}}}}
+  ]
+}

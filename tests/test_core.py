@@ -1,0 +1,217 @@
+import copy
+import json
+import shutil
+import tempfile
+import unittest
+import zipfile
+from pathlib import Path
+from fdex_tender.core import InputError, digest_file, digest_bytes, load_context, read_json, safe_path, validate_envelope
+from fdex_tender.pipeline import run, release, rerun_module
+from fdex_tender.modules import register, read_tender, response_matrix, material_index, match_materials, selection_fingerprint
+from fdex_tender.documents import review_document
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+class CoreTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(prefix="tender-test-")
+        self.base = Path(self.temp.name)
+        self.source = self.base / "input"
+        shutil.copytree(ROOT / "samples/e2e/core-normal", self.source)
+
+    def tearDown(self):
+        self.temp.cleanup()
+
+    def generate(self, scenario=None, name="run"):
+        source = self.source if scenario is None else ROOT / "samples/e2e" / scenario
+        target = self.base / name
+        return target, run(source, target)
+
+    def test_normal_actual_chain_and_schema(self):
+        output, values = self.generate()
+        self.assertTrue(all(v["processing_status"] == "COMPLETE" for v in values.values()))
+        self.assertEqual(len(values["M04"]["data"]["requirements"]), 12)
+        self.assertEqual(values["M07"]["data"]["coverage"]["scope_total"], 8)
+        self.assertFalse(values["M07"]["data"]["coverage"]["full_tender_complete"])
+        self.assertEqual(len(values["M09"]["data"]["selected"]), 3)
+        for value in values.values():
+            validate_envelope(value)
+        self.assertTrue((output / "personnel-chapter.docx").exists())
+        with zipfile.ZipFile(output / "archive.zip") as z:
+            self.assertNotIn("outputs/.context.json", z.namelist())
+            self.assertIn("inputs/context.json", z.namelist())
+
+    def test_unconfirmed_does_not_generate_selection_docx(self):
+        output, values = self.generate("unconfirmed")
+        self.assertEqual(values["M09"]["processing_status"], "REVIEW")
+        self.assertEqual(values["M09"]["data"]["selected"], [])
+        self.assertFalse((output / "personnel-chapter.docx").exists())
+        self.assertEqual(values["M13"]["data"]["artifact_status"], "NOT_GENERATED")
+
+    def test_expired_and_changed_evidence_invalidates_confirmation(self):
+        output, values = self.generate("expired")
+        self.assertEqual(values["M09"]["data"]["confirmation"]["status"], "STALE")
+        self.assertEqual(values["M09"]["data"]["candidates"][2]["status"], "EXPIRED")
+        self.assertFalse((output / "personnel-chapter.docx").exists())
+
+    def test_missing_image_not_fabricated(self):
+        output, values = self.generate("missing-image")
+        self.assertFalse((output / "personnel-chapter.docx").exists())
+        self.assertTrue(any(i["code"] == "IMAGE_UNREADABLE" for i in values["M08"]["issues"]))
+
+    def test_unselected_missing_image_does_not_block_selected_scope(self):
+        (self.source / "materials/cert-04.png").unlink()
+        output, values = self.generate()
+        self.assertEqual(values["M14"]["processing_status"], "COMPLETE")
+        self.assertTrue((output / "personnel-chapter.docx").exists())
+
+    def test_changed_input_confirmation_cannot_reuse_old_release(self):
+        output, _ = self.generate()
+        record = read_json(self.source / "selection.json")
+        record["confirmed_by"] = "Different DEMO actor"
+        (self.source / "selection.json").write_text(json.dumps(record), encoding="utf-8")
+        with self.assertRaises(InputError):
+            release(output, "DEMO reviewer")
+
+    def test_replacement_removes_old_name_number_and_image(self):
+        old, normal = self.generate(name="normal")
+        new, changed = self.generate("replacement", "replacement")
+        with zipfile.ZipFile(new / "personnel-chapter.docx") as z:
+            xml = z.read("word/document.xml").decode()
+            hashes = {digest_bytes(z.read(n)) for n in z.namelist() if n.startswith("word/media/")}
+        self.assertNotIn("示例人员丙", xml)
+        self.assertNotIn("DEMO-CERT-003", xml)
+        self.assertIn("示例人员丁", xml)
+        self.assertNotIn(digest_file(self.source / "materials/cert-03.png"), hashes)
+        self.assertIn(digest_file(self.source / "materials/cert-04.png"), hashes)
+
+    def test_stable_ids_across_runs_and_changed_text(self):
+        _, first = self.generate(name="first")
+        text = self.source / "tender/tender.md"
+        text.write_text(text.read_text().replace("人员不少于3名", "人员不少于4名"), encoding="utf-8")
+        _, second = self.generate(name="second")
+        a = [r["requirement_id"] for r in first["M04"]["data"]["requirements"]]
+        b = [r["requirement_id"] for r in second["M04"]["data"]["requirements"]]
+        self.assertEqual(a, b)
+        self.assertEqual(second["M04"]["data"]["personnel_rule"]["count"], 4)
+        self.assertEqual(second["M09"]["data"]["confirmation"]["status"], "STALE")
+
+    def test_unknown_selected_id_is_rejected(self):
+        record = read_json(self.source / "selection.json")
+        record["person_ids"] = ["PERSON-01", "PERSON-02", "NOT-A-PERSON"]
+        ctx = load_context(self.source, "TEST")
+        r = register(ctx); t = read_tender(ctx, r); idx = material_index(ctx, r)
+        record["target_digest"] = selection_fingerprint(ctx, t, idx, record["person_ids"], record["roles"])
+        (self.source / "selection.json").write_text(json.dumps(record), encoding="utf-8")
+        _, values = self.generate()
+        self.assertEqual(values["M09"]["data"]["selected"], [])
+        self.assertTrue(any(i["code"] == "SELECTION_INVALID" for i in values["M09"]["issues"]))
+
+    def test_no_real_mode_fallback(self):
+        context = read_json(self.source / "context.json")
+        context["source_mode"] = "REAL"
+        (self.source / "context.json").write_text(json.dumps(context), encoding="utf-8")
+        with self.assertRaises(InputError):
+            self.generate()
+        self.assertFalse((self.base / "run").exists())
+
+    def test_path_traversal_and_symlink_escape(self):
+        with self.assertRaises(InputError):
+            safe_path(self.source, "../outside")
+        (self.source / "outside-link").symlink_to(self.base)
+        with self.assertRaises(InputError):
+            safe_path(self.source, "outside-link/anything")
+
+    def test_template_hash_or_columns_are_not_silently_accepted(self):
+        path = self.source / "template-manifest.json"
+        manifest = read_json(path); manifest["sha256"] = "0" * 64
+        path.write_text(json.dumps(manifest), encoding="utf-8")
+        output, values = self.generate()
+        self.assertTrue(any(i["code"] == "TEMPLATE_HASH_MISMATCH" for i in values["M07"]["issues"]))
+        self.assertFalse((output / "personnel-chapter.docx").exists())
+
+    def test_cross_lot_confirm_rejected(self):
+        record = read_json(self.source / "selection.json"); record["lot_id"] = "LOT-OTHER"
+        (self.source / "selection.json").write_text(json.dumps(record), encoding="utf-8")
+        _, values = self.generate()
+        self.assertTrue(any(i["code"] == "CONFIRMATION_CONTEXT_MISMATCH" for i in values["M09"]["issues"]))
+
+    def test_no_overwrite_of_history(self):
+        self.generate()
+        with self.assertRaises(InputError):
+            self.generate()
+
+    def test_review_detects_four_actual_document_faults(self):
+        output, values = self.generate()
+        path = output / "personnel-chapter.docx"
+        with zipfile.ZipFile(path) as z:
+            contents = {n: z.read(n) for n in z.namelist()}
+        xml = contents["word/document.xml"].decode().replace("示例专业服务项目", "错误项目名").replace("示例人员丙", "旧人员姓名")
+        xml = xml.replace("</w:body>", "<w:p><w:r><w:t>{{UNFILLED}}</w:t></w:r></w:p></w:body>")
+        contents["word/document.xml"] = xml.encode()
+        # Remove one visible image relationship target while preserving a valid DOCX package.
+        media = next(n for n in contents if n.startswith("word/media/"))
+        from lxml import etree
+        rels = etree.fromstring(contents["word/_rels/document.xml.rels"])
+        for node in list(rels):
+            if node.get("Target") == media.removeprefix("word/"):
+                rid = node.get("Id")
+                rels.remove(node)
+                xml = contents["word/document.xml"].decode()
+                xml = re_sub_drawing(xml, rid)
+                contents["word/document.xml"] = xml.encode()
+        contents["word/_rels/document.xml.rels"] = etree.tostring(rels)
+        contents.pop(media)
+        with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+            for name, body in contents.items():
+                z.writestr(name, body)
+        ctx = load_context(self.source, "TEST")
+        review = review_document(ctx, values["M07"], values["M08"], values["M09"], values["M13"], output)
+        codes = {i["code"] for i in review["issues"]}
+        self.assertTrue({"PROJECT_FIELDS_WRONG", "PERSON_TABLE_WRONG", "ATTACHMENT_SET_WRONG", "PLACEHOLDER_REMAINS"} <= codes)
+        with self.assertRaises(InputError):
+            release(output, "DEMO reviewer")
+
+    def test_release_is_local_scope_and_input_changes_are_refused(self):
+        output, _ = self.generate()
+        result = release(output, "DEMO reviewer")
+        self.assertEqual(result["scope"], "personnel_chapter_only")
+        self.assertFalse(result["real_submission_authorized"])
+        path = self.source / "materials/person-01.md"
+        path.write_text(path.read_text() + "\nChanged", encoding="utf-8")
+        with self.assertRaises(InputError):
+            release(output, "DEMO reviewer")
+
+    def test_module_rerun_uses_generated_upstream_and_revokes_old_release(self):
+        old, _ = self.generate()
+        release(old, "DEMO reviewer")
+        new = self.base / "rerun"
+        values = rerun_module("M13", old, new)
+        self.assertEqual(values["M13"]["processing_status"], "COMPLETE")
+        self.assertEqual(read_json(new / "release_record.json")["status"], "REVOKED")
+        self.assertFalse((new / "archive.zip").exists())
+        with self.assertRaises(InputError):
+            release(new, "DEMO reviewer")
+
+    def test_archive_can_replay_from_original_inputs(self):
+        output, _ = self.generate()
+        unpacked = self.base / "unpacked"
+        with zipfile.ZipFile(output / "archive.zip") as z:
+            z.extractall(unpacked)
+        values = run(unpacked / "inputs", self.base / "replay")
+        self.assertEqual(values["M14"]["processing_status"], "COMPLETE")
+
+
+def re_sub_drawing(xml, rid):
+    from lxml import etree
+    tree = etree.fromstring(xml.encode())
+    ns = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main", "a": "http://schemas.openxmlformats.org/drawingml/2006/main", "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships"}
+    for drawing in tree.xpath("//w:drawing", namespaces=ns):
+        if drawing.xpath(".//a:blip[@r:embed=$rid]", namespaces=ns, rid=rid):
+            drawing.getparent().remove(drawing)
+    return etree.tostring(tree, encoding="unicode")
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fdex-tender-agent"
+version = "0.1.0"
+description = "FDEX 招投标实训基座：原文、确认、可编辑 Word 与可回放交接"
+requires-python = ">=3.10"
+dependencies = ["python-docx==1.2.0", "Pillow==12.2.0", "jsonschema==4.26.0"]
+
+[project.scripts]
+tender-lab = "fdex_tender.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

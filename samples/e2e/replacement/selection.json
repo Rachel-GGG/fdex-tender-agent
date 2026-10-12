@@ -1,0 +1,20 @@
+{
+  "project_id": "DEMO-BID-001",
+  "lot_id": "LOT-001",
+  "source_mode": "DEMO",
+  "status": "CONFIRMED",
+  "person_ids": [
+    "PERSON-01",
+    "PERSON-02",
+    "PERSON-04"
+  ],
+  "target_digest": "96ec9bfddfbe6acaa339cb5fa27f59afa6348b4225895afa170a8c3f3be4fc14",
+  "confirmed_by": "DEMO-资料负责人",
+  "confirmed_at": "2026-10-13T10:05:00+08:00",
+  "record_kind": "SYNTHETIC_INPUT_CONFIRMATION",
+  "roles": {
+    "PERSON-01": "负责人",
+    "PERSON-02": "业务分析",
+    "PERSON-04": "交付测试"
+  }
+}

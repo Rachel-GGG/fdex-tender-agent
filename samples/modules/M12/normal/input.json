@@ -1,0 +1,44 @@
+{
+  "schema_version": "bid-training.module-fixture.v1",
+  "module": "M12",
+  "source_mode": "DEMO",
+  "project_id": "DEMO-BID-001",
+  "lot_id": "LOT-001",
+  "analysis_time": "2026-10-13T09:00:00+08:00",
+  "fixture_status": "PLANNED_EXTENSION_INPUT",
+  "objective": "用Decimal实现3组数量/单价/税费/舍入明确的计算与超限检测。",
+  "base_input": "samples/e2e/core-normal",
+  "expected_boundary": "独立模块先运行；不让LLM口算，不默认税率，不混入未完成全本放行。",
+  "cases": [
+    {
+      "id": "PRICE-01",
+      "quantity": "3",
+      "unit_price": "100.00",
+      "tax_rate": "0.06",
+      "tax_mode": "exclusive",
+      "rounding": "ROUND_HALF_UP",
+      "digits": 2,
+      "ceiling": "400.00"
+    },
+    {
+      "id": "PRICE-02",
+      "quantity": "2.5",
+      "unit_price": "99.99",
+      "tax_rate": "0.13",
+      "tax_mode": "exclusive",
+      "rounding": "ROUND_HALF_UP",
+      "digits": 2,
+      "ceiling": "300.00"
+    },
+    {
+      "id": "PRICE-03",
+      "quantity": "10",
+      "unit_price": "12.50",
+      "tax_rate": null,
+      "tax_mode": null,
+      "rounding": "ROUND_HALF_UP",
+      "digits": 2,
+      "ceiling": "100.00"
+    }
+  ]
+}

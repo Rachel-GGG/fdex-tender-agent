@@ -1,0 +1,36 @@
+name: Task coordinator
+on:
+  issue_comment:
+    types: [created]
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+concurrency:
+  group: tender-governance
+  queue: max
+jobs:
+  coordinate:
+    if: github.event_name != 'issue_comment' || startsWith(github.event.comment.body, '/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Process command
+        if: github.event_name == 'issue_comment'
+        run: python tools/github_coordinator.py issue
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: Sweep stale claims
+        if: github.event_name != 'issue_comment'
+        run: python tools/github_coordinator.py sweep
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

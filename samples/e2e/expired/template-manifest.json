@@ -1,0 +1,13 @@
+{
+  "template_id": "TPL-PERSONNEL",
+  "version": "1.0",
+  "relative_path": "template/personnel-v1.docx",
+  "sha256": "157d6af5a85c6fd73be0e0979ffdaf89300c5f50f14b20b82d686a508862e394",
+  "columns": [
+    "角色",
+    "人员",
+    "证书编号",
+    "有效期",
+    "原件位置"
+  ]
+}

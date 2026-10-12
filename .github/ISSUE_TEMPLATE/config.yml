@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 学员入场说明
+    url: https://github.com/iurp/fdex-tender-agent/blob/main/README.md
+    about: 先读 README，再到已开放任务下认领。

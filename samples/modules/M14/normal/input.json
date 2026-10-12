@@ -1,0 +1,12 @@
+{
+  "schema_version": "bid-training.module-fixture.v1",
+  "module": "M14",
+  "source_mode": "DEMO",
+  "project_id": "DEMO-BID-001",
+  "lot_id": "LOT-001",
+  "analysis_time": "2026-10-13T09:00:00+08:00",
+  "fixture_status": "USE_CORE_RAW_FIXTURE",
+  "objective": "将trace对应到实际Word表格单元格和附件关系，检测伪造或错位映射。",
+  "base_input": "samples/e2e/core-normal",
+  "expected_boundary": "现基座有4类错误检测；新增可定位审查，不能只读装配日志或自述。"
+}

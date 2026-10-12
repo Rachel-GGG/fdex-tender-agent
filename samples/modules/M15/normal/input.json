@@ -1,0 +1,12 @@
+{
+  "schema_version": "bid-training.module-fixture.v1",
+  "module": "M15",
+  "source_mode": "DEMO",
+  "project_id": "DEMO-BID-001",
+  "lot_id": "LOT-001",
+  "analysis_time": "2026-10-13T09:00:00+08:00",
+  "fixture_status": "PLANNED_EXTENSION_INPUT",
+  "objective": "用独立全本模拟输入验证放行哈希、范围、截止与回执。",
+  "base_input": "samples/e2e/core-normal",
+  "expected_boundary": "核心人员章节不能当全本；不登录真实交易平台。"
+}

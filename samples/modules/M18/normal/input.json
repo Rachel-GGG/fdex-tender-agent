@@ -1,0 +1,12 @@
+{
+  "schema_version": "bid-training.module-fixture.v1",
+  "module": "M18",
+  "source_mode": "DEMO",
+  "project_id": "DEMO-BID-001",
+  "lot_id": "LOT-001",
+  "analysis_time": "2026-10-13T09:00:00+08:00",
+  "fixture_status": "USE_CORE_RAW_FIXTURE",
+  "objective": "在归档基础上形成模板、规则和脱敏章节候选及人工批准记录。",
+  "base_input": "samples/e2e/core-normal",
+  "expected_boundary": "现基座只归档；未批准不得自动作为下次已确认响应。"
+}

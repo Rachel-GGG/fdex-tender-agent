@@ -1,0 +1,20 @@
+{
+  "schema_version": "bid-training.module-fixture.v1",
+  "module": "M02",
+  "source_mode": "DEMO",
+  "project_id": "DEMO-BID-001",
+  "lot_id": "LOT-001",
+  "analysis_time": "2026-10-13T09:00:00+08:00",
+  "fixture_status": "PLANNED_EXTENSION_INPUT",
+  "objective": "用显式配置实现区域、预算和准备时间筛选。",
+  "base_input": "samples/e2e/core-normal",
+  "expected_boundary": "未知预算不填0；缺规则NOT_EVALUATED；时间冻结。",
+  "rules": {
+    "regions": [
+      "DEMO-REGION"
+    ],
+    "budget_min": "100000",
+    "budget_max": "1000000",
+    "minimum_preparation_days": 10
+  }
+}

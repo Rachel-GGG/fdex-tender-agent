@@ -1,0 +1,10 @@
+{
+  "project_id": "DEMO-BID-001",
+  "lot_id": "LOT-001",
+  "project_name": "示例专业服务项目",
+  "company_id": "DEMO-COMPANY",
+  "source_mode": "DEMO",
+  "analysis_time": "2026-10-13T09:00:00+08:00",
+  "business_participation": "EXISTING_GO",
+  "note": "所有企业、人员、确认人和证书均虚构；无需联网和API key"
+}

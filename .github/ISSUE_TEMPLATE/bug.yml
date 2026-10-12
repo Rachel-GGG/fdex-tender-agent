@@ -1,0 +1,18 @@
+name: 缺陷与求助
+description: 提供可重放输入、实际结果和阻塞情况
+title: '[Bug] '
+labels: ['bug']
+body:
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 复现与预期
+      description: 填命令、公开或合成输入、实际结果、预期结果，勿附真实资料或密钥。
+    validations:
+      required: true
+  - type: textarea
+    id: attempts
+    attributes:
+      label: 已经尝试与需要帮助
+    validations:
+      required: true

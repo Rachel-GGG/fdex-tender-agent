@@ -1,0 +1,12 @@
+{
+  "schema_version": "bid-training.module-fixture.v1",
+  "module": "M13",
+  "source_mode": "DEMO",
+  "project_id": "DEMO-BID-001",
+  "lot_id": "LOT-001",
+  "analysis_time": "2026-10-13T09:00:00+08:00",
+  "fixture_status": "USE_CORE_RAW_FIXTURE",
+  "objective": "适配新增资格类型列的模板1.1，提供明确manifest与装配映射。",
+  "base_input": "samples/e2e/core-normal",
+  "expected_boundary": "现基座模板1.0；新列要实际填入Word，更新哈希，换人无残留。"
+}

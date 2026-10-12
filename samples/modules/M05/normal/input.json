@@ -1,0 +1,12 @@
+{
+  "schema_version": "bid-training.module-fixture.v1",
+  "module": "M05",
+  "source_mode": "DEMO",
+  "project_id": "DEMO-BID-001",
+  "lot_id": "LOT-001",
+  "analysis_time": "2026-10-13T09:00:00+08:00",
+  "fixture_status": "PLANNED_EXTENSION_INPUT",
+  "objective": "实现参与建议与已有EXISTING_GO决定登记的独立模块。",
+  "base_input": "samples/e2e/core-normal",
+  "expected_boundary": "输入确认不是模型编造，参与决定不覆盖人员/报价审批。"
+}

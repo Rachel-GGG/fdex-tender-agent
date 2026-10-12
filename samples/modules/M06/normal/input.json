@@ -1,0 +1,12 @@
+{
+  "schema_version": "bid-training.module-fixture.v1",
+  "module": "M06",
+  "source_mode": "DEMO",
+  "project_id": "DEMO-BID-001",
+  "lot_id": "LOT-001",
+  "analysis_time": "2026-10-13T09:00:00+08:00",
+  "fixture_status": "PLANNED_EXTENSION_INPUT",
+  "objective": "支持人数3→4、截止变化，列出影响并使相关确认与放行失效。",
+  "base_input": "samples/e2e/core-normal",
+  "expected_boundary": "基座指纹能拒绝旧确认；新增明确变更映射和受影响模块，不重跑所有无关模块。"
+}

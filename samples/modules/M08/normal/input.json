@@ -1,0 +1,12 @@
+{
+  "schema_version": "bid-training.module-fixture.v1",
+  "module": "M08",
+  "source_mode": "DEMO",
+  "project_id": "DEMO-BID-001",
+  "lot_id": "LOT-001",
+  "analysis_time": "2026-10-13T09:00:00+08:00",
+  "fixture_status": "USE_CORE_RAW_FIXTURE",
+  "objective": "增加4张合成证书的可见字段提取与不确定字段复核。",
+  "base_input": "samples/e2e/core-normal",
+  "expected_boundary": "现基座读取sidecar并检查图片，不是OCR；实际读取图片，模糊时不补数字。"
+}

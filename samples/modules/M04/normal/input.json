@@ -1,0 +1,12 @@
+{
+  "schema_version": "bid-training.module-fixture.v1",
+  "module": "M04",
+  "source_mode": "DEMO",
+  "project_id": "DEMO-BID-001",
+  "lot_id": "LOT-001",
+  "analysis_time": "2026-10-13T09:00:00+08:00",
+  "fixture_status": "USE_CORE_RAW_FIXTURE",
+  "objective": "新增一种无R标签的自然文本适配器，并保留要求来源与稳定ID。",
+  "base_input": "samples/e2e/core-normal",
+  "expected_boundary": "现基座只读带标签Markdown；新适配器不得只读预置答案JSON。"
+}

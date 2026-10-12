@@ -1,0 +1,12 @@
+{
+  "schema_version": "bid-training.module-fixture.v1",
+  "module": "M17",
+  "source_mode": "DEMO",
+  "project_id": "DEMO-BID-001",
+  "lot_id": "LOT-001",
+  "analysis_time": "2026-10-13T09:00:00+08:00",
+  "fixture_status": "PLANNED_EXTENSION_INPUT",
+  "objective": "从实际提交版本提取承诺并与给定模拟合同找2处差异。",
+  "base_input": "samples/e2e/core-normal",
+  "expected_boundary": "无中标不生成已完成交接，无合同不声称已做一致性检查。"
+}

@@ -1,0 +1,49 @@
+{
+  "schema_version": "bid-training.module-fixture.v1",
+  "module": "M16",
+  "source_mode": "DEMO",
+  "project_id": "DEMO-BID-001",
+  "lot_id": "LOT-001",
+  "analysis_time": "2026-10-13T09:00:00+08:00",
+  "fixture_status": "PLANNED_EXTENSION_INPUT",
+  "objective": "实现结果分类和明确分母的中标率统计。",
+  "base_input": "samples/e2e/core-normal",
+  "expected_boundary": "2/4=50%样例，待定/取消/未参与另列；原因假设不写成事实。",
+  "results": [
+    {
+      "id": "B1",
+      "participated": true,
+      "status": "WON"
+    },
+    {
+      "id": "B2",
+      "participated": true,
+      "status": "WON"
+    },
+    {
+      "id": "B3",
+      "participated": true,
+      "status": "LOST"
+    },
+    {
+      "id": "B4",
+      "participated": true,
+      "status": "LOST"
+    },
+    {
+      "id": "B5",
+      "participated": true,
+      "status": "PENDING"
+    },
+    {
+      "id": "B6",
+      "participated": true,
+      "status": "CANCELLED"
+    },
+    {
+      "id": "B7",
+      "participated": false,
+      "status": "NOT_PARTICIPATED"
+    }
+  ]
+}

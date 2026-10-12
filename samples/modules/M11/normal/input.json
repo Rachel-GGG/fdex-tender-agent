@@ -1,0 +1,12 @@
+{
+  "schema_version": "bid-training.module-fixture.v1",
+  "module": "M11",
+  "source_mode": "DEMO",
+  "project_id": "DEMO-BID-001",
+  "lot_id": "LOT-001",
+  "analysis_time": "2026-10-13T09:00:00+08:00",
+  "fixture_status": "PLANNED_EXTENSION_INPUT",
+  "objective": "实现一套资格与商务偏离表，保留未确认的声明与签署待办。",
+  "base_input": "samples/e2e/core-normal",
+  "expected_boundary": "不默认无偏离，不创建真实签章。"
+}

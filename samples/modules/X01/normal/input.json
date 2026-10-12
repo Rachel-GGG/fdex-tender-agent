@@ -1,0 +1,12 @@
+{
+  "schema_version": "bid-training.module-fixture.v1",
+  "module": "X01",
+  "source_mode": "DEMO",
+  "project_id": "DEMO-BID-001",
+  "lot_id": "LOT-001",
+  "analysis_time": "2026-10-13T09:00:00+08:00",
+  "fixture_status": "USE_CORE_RAW_FIXTURE",
+  "objective": "增加显式依赖图，替换人员、模板变化时仅重跑受影响模块。",
+  "base_input": "samples/e2e/core-normal",
+  "expected_boundary": "现基座单模块重跑标下游STALE；保持旧目录与确认哈希，不覆盖历史。"
+}

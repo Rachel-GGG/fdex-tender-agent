@@ -1,0 +1,211 @@
+[
+  {
+    "id": "M01-01",
+    "module": "M01",
+    "title": "[M01] 公告获取与去重",
+    "difficulty": "standard",
+    "status": "backlog",
+    "objective": "新增本地网页快照适配器，处理重复、补遗与不同标包。",
+    "acceptance": "M01-AC1..AC4",
+    "handoff": "本地快照→opportunity_cards",
+    "delta": "为10个公告提供可回放输入，保留失败和来源，不接账号登录。"
+  },
+  {
+    "id": "M02-01",
+    "module": "M02",
+    "title": "[M02] 机会规则筛选",
+    "difficulty": "standard",
+    "status": "backlog",
+    "objective": "用显式配置实现区域、预算和准备时间筛选。",
+    "acceptance": "M02-AC1..AC4",
+    "handoff": "机会卡+规则→screening_result",
+    "delta": "未知预算不填0；缺规则NOT_EVALUATED；时间冻结。"
+  },
+  {
+    "id": "M03-01",
+    "module": "M03",
+    "title": "[M03] 文件清单与版本",
+    "difficulty": "beginner",
+    "status": "ready",
+    "objective": "扩展现有文件登记：检测重复内容、同名不同内容和缺少附件。",
+    "acceptance": "M03-AC1..AC3",
+    "handoff": "原始文件列表→source_manifest",
+    "delta": "现基座有哈希/相对路径；新增版本关系与缺口清单，不能覆盖原件。"
+  },
+  {
+    "id": "M04-01",
+    "module": "M04",
+    "title": "[M04] 原文要求适配",
+    "difficulty": "standard",
+    "status": "ready",
+    "objective": "新增一种无R标签的自然文本适配器，并保留要求来源与稳定ID。",
+    "acceptance": "M04-AC1..AC4",
+    "handoff": "招标原文→tender_brief",
+    "delta": "现基座只读带标签Markdown；新适配器不得只读预置答案JSON。"
+  },
+  {
+    "id": "M05-01",
+    "module": "M05",
+    "title": "[M05] 已有决定登记",
+    "difficulty": "beginner",
+    "status": "backlog",
+    "objective": "实现参与建议与已有EXISTING_GO决定登记的独立模块。",
+    "acceptance": "M05-AC1..AC4",
+    "handoff": "要求+输入决定→bid_decision",
+    "delta": "输入确认不是模型编造，参与决定不覆盖人员/报价审批。"
+  },
+  {
+    "id": "M06-01",
+    "module": "M06",
+    "title": "[M06] 补遗影响与失效",
+    "difficulty": "advanced",
+    "status": "ready",
+    "objective": "支持人数3→4、截止变化，列出影响并使相关确认与放行失效。",
+    "acceptance": "M06-AC1..AC4",
+    "handoff": "旧新原文+关系→change_impact",
+    "delta": "基座指纹能拒绝旧确认；新增明确变更映射和受影响模块，不重跑所有无关模块。"
+  },
+  {
+    "id": "M07-01",
+    "module": "M07",
+    "title": "[M07] 责任与任务期限",
+    "difficulty": "beginner",
+    "status": "ready",
+    "objective": "为响应矩阵增加配置的责任角色与明确任务期限，并检查不晚于业务时限。",
+    "acceptance": "M07-AC1..AC4",
+    "handoff": "tender_brief+映射→response_matrix/task_plan",
+    "delta": "现基座角色固定、due_time为空；不得把未知期限填当天。"
+  },
+  {
+    "id": "M08-01",
+    "module": "M08",
+    "title": "[M08] 可见证书字段提取",
+    "difficulty": "advanced",
+    "status": "ready",
+    "objective": "增加4张合成证书的可见字段提取与不确定字段复核。",
+    "acceptance": "M08-AC1..AC4",
+    "handoff": "证书图片+说明→material_index",
+    "delta": "现基座读取sidecar并检查图片，不是OCR；实际读取图片，模糊时不补数字。"
+  },
+  {
+    "id": "M09-01",
+    "module": "M09",
+    "title": "[M09] 公司资料匹配",
+    "difficulty": "standard",
+    "status": "ready",
+    "objective": "从人员证书扩展一类公司资质或业绩材料匹配，保留独立确认。",
+    "acceptance": "M09-AC1..AC4",
+    "handoff": "matrix+index+confirmation→asset_match",
+    "delta": "新增样例和未知/过期/换资料指纹测试，不自动确认选用。"
+  },
+  {
+    "id": "M10-01",
+    "module": "M10",
+    "title": "[M10] 技术章节响应",
+    "difficulty": "standard",
+    "status": "backlog",
+    "objective": "实现一个实施计划与交付物章节，逐条覆盖5个明确要求。",
+    "acceptance": "M10-AC1..AC4",
+    "handoff": "要求+已确认资源→technical_response",
+    "delta": "方案与事实分开；缺业绩不编造。"
+  },
+  {
+    "id": "M11-01",
+    "module": "M11",
+    "title": "[M11] 商务表与偏离",
+    "difficulty": "standard",
+    "status": "backlog",
+    "objective": "实现一套资格与商务偏离表，保留未确认的声明与签署待办。",
+    "acceptance": "M11-AC1..AC4",
+    "handoff": "要求+企业事实→commercial_response",
+    "delta": "不默认无偏离，不创建真实签章。"
+  },
+  {
+    "id": "M12-01",
+    "module": "M12",
+    "title": "[M12] 确定性报价计算",
+    "difficulty": "standard",
+    "status": "ready",
+    "objective": "用Decimal实现3组数量/单价/税费/舍入明确的计算与超限检测。",
+    "acceptance": "M12-AC1..AC4",
+    "handoff": "显式计算参数→pricing_result",
+    "delta": "独立模块先运行；不让LLM口算，不默认税率，不混入未完成全本放行。"
+  },
+  {
+    "id": "M13-01",
+    "module": "M13",
+    "title": "[M13] 第二人员模板",
+    "difficulty": "standard",
+    "status": "ready",
+    "objective": "适配新增资格类型列的模板1.1，提供明确manifest与装配映射。",
+    "acceptance": "M13-AC1..AC5",
+    "handoff": "matrix+确认材料+模板→DOCX",
+    "delta": "现基座模板1.0；新列要实际填入Word，更新哈希，换人无残留。"
+  },
+  {
+    "id": "M14-01",
+    "module": "M14",
+    "title": "[M14] 实际位置与证据审查",
+    "difficulty": "standard",
+    "status": "ready",
+    "objective": "将trace对应到实际Word表格单元格和附件关系，检测伪造或错位映射。",
+    "acceptance": "M14-AC1..AC4",
+    "handoff": "实际DOCX+原件+矩阵→review_result",
+    "delta": "现基座有4类错误检测；新增可定位审查，不能只读装配日志或自述。"
+  },
+  {
+    "id": "M15-01",
+    "module": "M15",
+    "title": "[M15] 模拟递交核对",
+    "difficulty": "advanced",
+    "status": "backlog",
+    "objective": "用独立全本模拟输入验证放行哈希、范围、截止与回执。",
+    "acceptance": "M15-AC1..AC5",
+    "handoff": "全本模拟包+回执→submission_record",
+    "delta": "核心人员章节不能当全本；不登录真实交易平台。"
+  },
+  {
+    "id": "M16-01",
+    "module": "M16",
+    "title": "[M16] 结果与统计",
+    "difficulty": "standard",
+    "status": "backlog",
+    "objective": "实现结果分类和明确分母的中标率统计。",
+    "acceptance": "M16-AC1..AC4",
+    "handoff": "结果材料+参与记录→bid_result_record",
+    "delta": "2/4=50%样例，待定/取消/未参与另列；原因假设不写成事实。"
+  },
+  {
+    "id": "M17-01",
+    "module": "M17",
+    "title": "[M17] 中标承诺交接",
+    "difficulty": "standard",
+    "status": "backlog",
+    "objective": "从实际提交版本提取承诺并与给定模拟合同找2处差异。",
+    "acceptance": "M17-AC1..AC4",
+    "handoff": "中标结果+提交版本+合同→handover",
+    "delta": "无中标不生成已完成交接，无合同不声称已做一致性检查。"
+  },
+  {
+    "id": "M18-01",
+    "module": "M18",
+    "title": "[M18] 复用候选与审批",
+    "difficulty": "beginner",
+    "status": "ready",
+    "objective": "在归档基础上形成模板、规则和脱敏章节候选及人工批准记录。",
+    "acceptance": "M18-AC1..AC4",
+    "handoff": "运行原件+许可→reuse_candidates",
+    "delta": "现基座只归档；未批准不得自动作为下次已确认响应。"
+  },
+  {
+    "id": "X01-01",
+    "module": "X01",
+    "title": "[X01] 公共底座与局部重跑",
+    "difficulty": "advanced",
+    "status": "ready",
+    "objective": "增加显式依赖图，替换人员、模板变化时仅重跑受影响模块。",
+    "acceptance": "X01 公共最低标准",
+    "handoff": "已生成模块+change_impact→新运行",
+    "delta": "现基座单模块重跑标下游STALE；保持旧目录与确认哈希，不覆盖历史。"
+  }
+]
