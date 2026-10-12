@@ -54,6 +54,13 @@ def archive(ctx, run_dir):
             files.append({"relative_path": path.name, "sha256": digest_file(path)})
     registered = read_json(run_dir / "source_manifest.json")
     sources = registered["data"]["sources"]
+    if digest_file(safe_path(ctx["input_root"], "sources.json")) != registered["data"].get("sources_manifest_sha256") or any(not s.get("public", False) for s in sources):
+        from .core import issue
+        blocked = envelope(ctx, "M18", {"files": files, "source_files": sources, "public_export": False,
+                                        "reuse_candidates_status": "NOT_APPROVED", "replay_boundary": "公开导出被阻断"},
+                           issues=[issue("EXPORT_NOT_PERMITTED", "archive", "来源许可缺失或登记策略变化，未生成公开包", owner="资料管理员")])
+        save_module(run_dir, "archive_manifest.json", blocked)
+        raise InputError("Public archive refused before export: source permissions missing or changed")
     value = envelope(ctx, "M18", {"files": files, "source_files": sources,
                                 "public_export": True, "reuse_candidates_status": "NOT_APPROVED",
                                 "replay_boundary": "DEMO原件与本次输出归档；无真实资料或复用授权"})

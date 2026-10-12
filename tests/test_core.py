@@ -116,6 +116,22 @@ class CoreTests(unittest.TestCase):
             self.generate()
         self.assertFalse((self.base / "run").exists())
 
+    def test_module_types_are_validated_not_just_field_presence(self):
+        _, values = self.generate()
+        broken = copy.deepcopy(values["M04"])
+        broken["data"]["requirements"] = "not an array"
+        with self.assertRaises(InputError):
+            validate_envelope(broken)
+
+    def test_nonpublic_source_never_creates_public_zip(self):
+        path = self.source / "sources.json"
+        data = read_json(path); data["sources"][0]["public"] = False
+        path.write_text(json.dumps(data), encoding="utf-8")
+        with self.assertRaises(InputError):
+            self.generate()
+        self.assertFalse((self.base / "run/archive.zip").exists())
+        self.assertFalse(read_json(self.base / "run/archive_manifest.json")["data"]["public_export"])
+
     def test_path_traversal_and_symlink_escape(self):
         with self.assertRaises(InputError):
             safe_path(self.source, "../outside")

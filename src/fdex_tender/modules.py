@@ -27,6 +27,7 @@ def register(ctx):
         sources.append(value)
         refs.append({k: value[k] for k in ("source_id", "relative_path", "version", "sha256")})
     return envelope(ctx, "M03", {"project": {k: ctx[k] for k in ("project_id", "lot_id", "project_name", "analysis_time")},
+                                 "sources_manifest_sha256": digest_file(root / "sources.json"),
                                  "business_participation": ctx.get("business_participation", "UNDECIDED"),
                                  "sources": sources, "current_version_claim": "SUPPLIED_SCOPE_ONLY"}, refs, problems)
 
@@ -56,6 +57,8 @@ def read_tender(ctx, registered):
                                  "mandatory": "必须" in text or "不少于" in text,
                                  "disqualifying": True if "否则否决" in text else None,
                                  "score": None, "fact_kind": "SOURCE_FACT", "version": src["version"],
+                                 "missing_reason": {"score": "本适配器未解析出评分数值，请核对原文；不补造分值",
+                                                    "disqualifying": None if "否则否决" in text else "原文未给出明确否决性依据"},
                                  "evidence_refs": [evidence(src["source_id"], number, line)],
                                  "in_personnel_scope": key in ("R-01", "R-02", "R-03", "R-04", "R-05", "R-06", "R-07", "R-08")})
             count = re.search(r"人员不少于(\d+)名", text)
@@ -139,7 +142,7 @@ def material_index(ctx, registered):
                        "qualification": get("qualification"), "valid_until": None if get("valid_until") == "unknown" else get("valid_until"),
                        "relative_path": get("image"), "sha256": image_hash, "version": src["version"],
                        "read_method": "provided_sidecar_not_ocr", "field_refs": field_refs,
-                       "verification_status": "DEMO_DECLARED_FIELDS", "public": True})
+                       "verification_status": "DEMO_DECLARED_FIELDS", "public": src.get("public", False)})
         refs.append({k: src[k] for k in ("source_id", "relative_path", "version", "sha256")})
     if len({p["person_id"] for p in persons}) != len(persons) or len({a["asset_id"] for a in assets}) != len(assets):
         problems.append(issue("DUPLICATE_MATERIAL_ID", "material_index", "人员或材料ID重复"))
