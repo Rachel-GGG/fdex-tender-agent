@@ -13,6 +13,15 @@ from fdex_tender.documents import review_document
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def load_m14_adapter():
+    """按文件路径加载验收适配器 adapters/m14.py（它不是包，不能 import）。"""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("m14_adapter_under_test", ROOT / "adapters" / "m14.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 class CoreTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix="tender-test-")
@@ -217,6 +226,295 @@ class CoreTests(unittest.TestCase):
             z.extractall(unpacked)
         values = run(unpacked / "inputs", self.base / "replay")
         self.assertEqual(values["M14"]["processing_status"], "COMPLETE")
+
+    def test_trace_records_actual_cell_and_relationship_locations(self):
+        output, values = self.generate()
+        from docx import Document
+        from docx.oxml.ns import qn
+        doc = Document(output / "personnel-chapter.docx")
+        selected = {p["person_id"]: p for p in values["M09"]["data"]["selected"]}
+        for entry in values["M13"]["data"]["trace"]:
+            person = selected[entry["person_id"]]
+            row = doc.tables[entry["table_index"]].rows[entry["row_index"]]
+            self.assertIn(person["name"], row.cells[entry["name_column"]].text)
+            self.assertIn(person["certificate_id"], row.cells[entry["certificate_column"]].text)
+            blips = list(doc.paragraphs[entry["paragraph_index"]]._element.iter(qn("a:blip")))
+            self.assertEqual(blips[0].get(qn("r:embed")), entry["relationship_id"])
+
+    def test_swapped_images_are_located_even_when_media_set_is_unchanged(self):
+        output, values = self.generate()
+        from docx import Document
+        from docx.oxml.ns import qn
+        path = output / "personnel-chapter.docx"
+        doc = Document(path)
+        blips = list(doc.element.body.iter(qn("a:blip")))
+        first, second = blips[0].get(qn("r:embed")), blips[1].get(qn("r:embed"))
+        blips[0].set(qn("r:embed"), second)
+        blips[1].set(qn("r:embed"), first)
+        doc.save(path)
+        ctx = load_context(self.source, "TEST")
+        review = review_document(ctx, values["M07"], values["M08"], values["M09"], values["M13"], output)
+        codes = {i["code"] for i in review["issues"]}
+        self.assertIn("ATTACHMENT_PERSON_MISMATCH", codes)
+        self.assertIn("image_relationship", review["data"]["located_issue_kinds"])
+        self.assertTrue(any(m["kind"] == "image_relationship" for m in review["data"]["location_mismatches"]))
+
+    def test_trace_pointing_to_wrong_cell_is_located(self):
+        output, values = self.generate()
+        assembled = copy.deepcopy(values["M13"])
+        assembled["data"]["trace"][0]["name_column"] = 2
+        ctx = load_context(self.source, "TEST")
+        review = review_document(ctx, values["M07"], values["M08"], values["M09"], assembled, output)
+        self.assertIn("TRACE_CELL_MISMATCH", {i["code"] for i in review["issues"]})
+        mismatch = next(m for m in review["data"]["location_mismatches"] if m["kind"] == "table_cell")
+        self.assertEqual((mismatch["table_index"], mismatch["row_index"], mismatch["column_index"]), (0, 1, 2))
+
+    def test_missing_trace_cannot_claim_location_review(self):
+        output, values = self.generate()
+        assembled = copy.deepcopy(values["M13"])
+        assembled["data"]["trace"] = []
+        ctx = load_context(self.source, "TEST")
+        review = review_document(ctx, values["M07"], values["M08"], values["M09"], assembled, output)
+        self.assertEqual(review["processing_status"], "REVIEW")
+        self.assertIn("TRACE_LOCATION_MISSING", {i["code"] for i in review["issues"]})
+
+    def test_changed_document_invalidates_released_hash(self):
+        output, values = self.generate()
+        record = release(output, "DEMO reviewer")
+        from docx import Document
+        doc = Document(output / "personnel-chapter.docx")
+        doc.paragraphs[0].add_run("（本地改写）")
+        doc.save(output / "personnel-chapter.docx")
+        ctx = load_context(self.source, "TEST")
+        review = review_document(ctx, values["M07"], values["M08"], values["M09"], values["M13"], output, release=record)
+        self.assertFalse(review["data"]["release_hash_matches"])
+        self.assertIn("RELEASE_STALE", {i["code"] for i in review["issues"]})
+
+    def test_placeholder_reports_the_exact_paragraph(self):
+        output, values = self.generate()
+        from docx import Document
+        path = output / "personnel-chapter.docx"
+        doc = Document(path)
+        doc.paragraphs[0].text = "{{UNFILLED}}"
+        doc.save(path)
+        ctx = load_context(self.source, "TEST")
+        review = review_document(ctx, values["M07"], values["M08"], values["M09"], values["M13"], output)
+        self.assertIn("PLACEHOLDER_REMAINS", {i["code"] for i in review["issues"]})
+        located = next(m for m in review["data"]["location_mismatches"]
+                       if m["kind"] == "paragraph" and m.get("quote") == "{{UNFILLED}}")
+        self.assertEqual(located["paragraph_index"], 0)
+        self.assertEqual(located["found_in"], "paragraph")
+
+    def test_person_table_mismatch_reports_the_differing_cell(self):
+        output, values = self.generate()
+        from docx import Document
+        path = output / "personnel-chapter.docx"
+        doc = Document(path)
+        doc.tables[0].rows[1].cells[1].text = "未选用旧人员"
+        doc.save(path)
+        ctx = load_context(self.source, "TEST")
+        review = review_document(ctx, values["M07"], values["M08"], values["M09"], values["M13"], output)
+        self.assertIn("PERSON_TABLE_WRONG", {i["code"] for i in review["issues"]})
+        located = next(m for m in review["data"]["location_mismatches"]
+                       if m["kind"] == "table_cell" and m.get("field") is None and m.get("expected"))
+        self.assertEqual((located["table_index"], located["row_index"], located["column_index"]), (0, 1, 1))
+        self.assertEqual(located["actual"], "未选用旧人员")
+
+    def test_missing_project_field_declares_the_scan_scope(self):
+        output, values = self.generate()
+        from docx import Document
+        ctx = load_context(self.source, "TEST")
+        path = output / "personnel-chapter.docx"
+        doc = Document(path)
+        body = [p for p in doc.paragraphs if ctx["project_name"] in p.text]
+        self.assertTrue(body, "样例应有一处写入项目名")
+        for paragraph in body:
+            paragraph.text = ""
+        doc.save(path)
+        review = review_document(ctx, values["M07"], values["M08"], values["M09"], values["M13"], output)
+        self.assertIn("PROJECT_FIELDS_WRONG", {i["code"] for i in review["issues"]})
+        located = next(m for m in review["data"]["location_mismatches"]
+                       if m["kind"] == "paragraph" and m.get("field") == "project_name")
+        self.assertIsNone(located["paragraph_index"])
+        self.assertGreater(located["searched_paragraphs"], 0)
+
+    # --- trace 声明完整性：缺字段/缺人/坐标非法不得放行，完整声明不得误杀 ---
+    # 对应 Issue #14 v2 与维护者复审意见：覆盖门禁与位置检查必须由生产代码
+    # 自己把守，教学 trace 缺字段不能成为跳过的理由。
+
+    def test_complete_requirement_mapping_still_passes(self):
+        output, values = self.generate()
+        ctx = load_context(self.source, "TEST")
+        review = review_document(ctx, values["M07"], values["M08"], values["M09"], values["M13"], output)
+        self.assertEqual(review["data"]["requirement_coverage"], "DECLARED_AND_MATCHED")
+        self.assertIn("scope_coverage", review["data"]["checks"])
+        self.assertTrue(review["data"]["release_allowed"])
+
+    def test_single_trace_entry_without_requirement_ids_cannot_pass(self):
+        output, values = self.generate()
+        assembled = copy.deepcopy(values["M13"])
+        del assembled["data"]["trace"][0]["requirement_ids"]
+        ctx = load_context(self.source, "TEST")
+        review = review_document(ctx, values["M07"], values["M08"], values["M09"], assembled, output)
+        codes = {i["code"] for i in review["issues"]}
+        self.assertIn("TRACE_REQUIREMENT_UNDECLARED", codes)
+        self.assertEqual(review["data"]["requirement_coverage"], "NOT_DECLARED_IN_TRACE")
+        self.assertIn(assembled["data"]["trace"][0]["person_id"],
+                      review["data"]["requirement_undeclared_person_ids"])
+        self.assertFalse(review["data"]["release_allowed"])
+        self.assertNotIn("scope_coverage", review["data"]["checks"])
+
+    def test_all_trace_entries_without_requirement_ids_cannot_pass(self):
+        output, values = self.generate()
+        assembled = copy.deepcopy(values["M13"])
+        for entry in assembled["data"]["trace"]:
+            del entry["requirement_ids"]
+        ctx = load_context(self.source, "TEST")
+        review = review_document(ctx, values["M07"], values["M08"], values["M09"], assembled, output)
+        self.assertIn("TRACE_REQUIREMENT_UNDECLARED", {i["code"] for i in review["issues"]})
+        self.assertFalse(review["data"]["release_allowed"])
+        self.assertNotIn("scope_coverage", review["data"]["checks"])
+
+    def test_empty_requirement_list_cannot_hide_behind_set_comparison(self):
+        # 每人的 requirement_ids 是同一份全量清单，只比集合时清空某一条，
+        # 并集不变、wanted==actual 仍成立——必须逐条挡住空数组。
+        output, values = self.generate()
+        assembled = copy.deepcopy(values["M13"])
+        victim = assembled["data"]["trace"][0]["person_id"]
+        assembled["data"]["trace"][0]["requirement_ids"] = []
+        ctx = load_context(self.source, "TEST")
+        review = review_document(ctx, values["M07"], values["M08"], values["M09"], assembled, output)
+        self.assertIn("RESPONSE_TRACE_MISSING", {i["code"] for i in review["issues"]})
+        self.assertIn(victim, review["data"]["requirement_empty_declared_person_ids"])
+        self.assertFalse(review["data"]["release_allowed"])
+
+    def test_dropping_one_persons_trace_cannot_claim_location_review(self):
+        output, values = self.generate()
+        assembled = copy.deepcopy(values["M13"])
+        dropped = assembled["data"]["trace"].pop()["person_id"]
+        ctx = load_context(self.source, "TEST")
+        review = review_document(ctx, values["M07"], values["M08"], values["M09"], assembled, output)
+        codes = {i["code"] for i in review["issues"]}
+        self.assertIn("TRACE_PERSON_MISSING", codes)
+        self.assertFalse(review["data"]["trace_location_checked"])
+        self.assertFalse(review["data"]["release_allowed"])
+        self.assertNotIn("trace_cell_locations", review["data"]["checks"])
+        self.assertTrue(any(m["person_id"] == dropped for m in review["data"]["trace_integrity"]))
+
+    def test_duplicated_person_trace_is_reported(self):
+        output, values = self.generate()
+        assembled = copy.deepcopy(values["M13"])
+        assembled["data"]["trace"].append(copy.deepcopy(assembled["data"]["trace"][-1]))
+        ctx = load_context(self.source, "TEST")
+        review = review_document(ctx, values["M07"], values["M08"], values["M09"], assembled, output)
+        self.assertIn("TRACE_PERSON_DUPLICATED", {i["code"] for i in review["issues"]})
+        self.assertFalse(review["data"]["trace_location_checked"])
+        self.assertFalse(review["data"]["release_allowed"])
+
+    def test_missing_relationship_field_blocks_release(self):
+        output, values = self.generate()
+        assembled = copy.deepcopy(values["M13"])
+        del assembled["data"]["trace"][0]["relationship_id"]
+        ctx = load_context(self.source, "TEST")
+        review = review_document(ctx, values["M07"], values["M08"], values["M09"], assembled, output)
+        self.assertIn("TRACE_RELATION_UNDECLARED", {i["code"] for i in review["issues"]})
+        self.assertFalse(review["data"]["trace_location_checked"])
+        self.assertFalse(review["data"]["release_allowed"])
+
+    def test_missing_location_field_blocks_release(self):
+        output, values = self.generate()
+        assembled = copy.deepcopy(values["M13"])
+        del assembled["data"]["trace"][0]["paragraph_index"]
+        ctx = load_context(self.source, "TEST")
+        review = review_document(ctx, values["M07"], values["M08"], values["M09"], assembled, output)
+        self.assertIn("TRACE_LOCATION_UNDECLARED", {i["code"] for i in review["issues"]})
+        self.assertFalse(review["data"]["trace_location_checked"])
+        self.assertFalse(review["data"]["release_allowed"])
+
+    def test_negative_and_bool_coordinates_are_rejected(self):
+        # bool 是 int 的子类，tables[True] 等价于 tables[1]；负数会静默取到
+        # 末尾几行——两者都能让"指错位置"看起来像"指对了"。
+        output, values = self.generate()
+        ctx = load_context(self.source, "TEST")
+        for field, bad in (("row_index", -1), ("table_index", True)):
+            assembled = copy.deepcopy(values["M13"])
+            assembled["data"]["trace"][0][field] = bad
+            review = review_document(ctx, values["M07"], values["M08"], values["M09"], assembled, output)
+            self.assertIn("TRACE_COORDINATE_INVALID", {i["code"] for i in review["issues"]},
+                          "%s=%r 应被判坐标非法" % (field, bad))
+            self.assertFalse(review["data"]["trace_location_checked"])
+            self.assertFalse(review["data"]["release_allowed"])
+
+    def test_complete_trace_still_claims_location_review(self):
+        output, values = self.generate()
+        ctx = load_context(self.source, "TEST")
+        review = review_document(ctx, values["M07"], values["M08"], values["M09"], values["M13"], output)
+        self.assertTrue(review["data"]["trace_location_checked"])
+        self.assertIn("trace_cell_locations", review["data"]["checks"])
+        self.assertIn("trace_image_relationships", review["data"]["checks"])
+        self.assertTrue(review["data"]["release_allowed"])
+
+    def test_adapter_mapping_fills_only_absent_keys(self):
+        # 第三轮评审：补齐的唯一条件是 key 完全不存在。key 已存在时，无论值是
+        # null、字符串、数字、空数组还是合法列表，一律原样保留交生产审查。
+        adapter = load_m14_adapter()
+        output, values = self.generate()
+        in_scope = [r["requirement_id"] for r in values["M04"]["data"]["requirements"] if r.get("in_personnel_scope")]
+        for label, declared in (("null", None), ("string", "REQ-FAKE"), ("number", 42),
+                                ("empty_list", []), ("valid_list", list(in_scope))):
+            trace = [{"person_id": "PERSON-01", "requirement_ids": declared},
+                     {"person_id": "PERSON-02"}]
+            filled = adapter.attach_requirement_mapping(trace, values["M04"])
+            self.assertEqual(filled, ["PERSON-02"], "%s：只有缺 key 的条目才补齐" % label)
+            self.assertEqual(trace[0]["requirement_ids"], declared, "%s：已声明的值绝不被覆盖" % label)
+            self.assertEqual(trace[1]["requirement_ids"], in_scope, "%s：缺 key 的条目按生产规则补齐" % label)
+        self.assertTrue(in_scope, "样例应有 in_personnel_scope 为真的要求")
+
+    def test_declared_invalid_mapping_is_not_laundered_into_a_pass(self):
+        # 第三轮评审的复现锁：null/字符串/数字曾被适配器洗成全量清单从而放行。
+        # 经适配器后，这些值必须以原面目到达生产门禁并各自被对应 issue 打回。
+        adapter = load_m14_adapter()
+        output, values = self.generate()
+        ctx = load_context(self.source, "TEST")
+        for label, declared, expect_code in (("null", None, "TRACE_REQUIREMENT_UNDECLARED"),
+                                             ("string", "REQ-FAKE", "TRACE_REQUIREMENT_UNDECLARED"),
+                                             ("number", 42, "TRACE_REQUIREMENT_UNDECLARED"),
+                                             ("empty_list", [], "RESPONSE_TRACE_MISSING")):
+            assembled = copy.deepcopy(values["M13"])
+            for entry in assembled["data"]["trace"]:
+                entry.pop("requirement_ids", None)
+            victim = assembled["data"]["trace"][0]["person_id"]
+            assembled["data"]["trace"][0]["requirement_ids"] = declared
+            filled = adapter.attach_requirement_mapping(assembled["data"]["trace"], values["M04"])
+            self.assertNotIn(victim, filled, "%s：已声明的条目不得进补齐名单" % label)
+            self.assertEqual(assembled["data"]["trace"][0]["requirement_ids"], declared,
+                             "%s：值必须原样到达生产审查" % label)
+            review = review_document(ctx, values["M07"], values["M08"], values["M09"], assembled, output)
+            codes = {i["code"] for i in review["issues"]}
+            self.assertIn(expect_code, codes, "%s 必须被生产门禁打回" % label)
+            self.assertFalse(review["data"]["release_allowed"], "%s 不得放行" % label)
+
+    def test_mapped_trace_passes_the_undeclared_gate_like_the_normal_case(self):
+        # 正常专项用例的完整路径：fixture 裸 trace 先被门禁打回，适配器按上游
+        # M04 映射补齐后同一份审查必须放行——锁定"适配器存在"这件事。
+        adapter = load_m14_adapter()
+        output, values = self.generate()
+        ctx = load_context(self.source, "TEST")
+        bare = copy.deepcopy(values["M13"])
+        for entry in bare["data"]["trace"]:
+            del entry["requirement_ids"]
+        before = review_document(ctx, values["M07"], values["M08"], values["M09"], bare, output)
+        self.assertIn("TRACE_REQUIREMENT_UNDECLARED", {i["code"] for i in before["issues"]})
+        self.assertFalse(before["data"]["release_allowed"])
+
+        filled = adapter.attach_requirement_mapping(bare["data"]["trace"], values["M04"])
+        after = review_document(ctx, values["M07"], values["M08"], values["M09"], bare, output)
+        self.assertEqual(filled, [e["person_id"] for e in bare["data"]["trace"]])
+        self.assertEqual(after["processing_status"], "COMPLETE")
+        self.assertEqual(after["data"]["requirement_coverage"], "DECLARED_AND_MATCHED")
+        self.assertIn("scope_coverage", after["data"]["checks"])
+        self.assertTrue(after["data"]["release_allowed"])
+        self.assertEqual([i["code"] for i in after["issues"]], [])
 
 
 def re_sub_drawing(xml, rid):
