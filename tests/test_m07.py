@@ -109,6 +109,20 @@ class AssignmentUnitTests(unittest.TestCase):
         self.assertEqual(codes, ["DUE_AFTER_DEADLINE"])
         self.assertEqual([r["late"] for r in rows], [True, False])
 
+    def test_due_time_is_compared_as_an_absolute_moment_across_timezones(self):
+        # 比较的是**绝对时刻**，不是字符串：+00:00 的 16:00 就是 +08:00 的次日 00:00，
+        # 恰等于截止 → 不算超期；-04:00 的 16:30 绝对时刻已晚于截止，
+        # 虽然字面上的"时分"看起来更小，也必须判超期。
+        deadline = "2026-11-02T00:00:00+08:00"
+        rows, codes = resolve_assignments(
+            [requirement("R-SAME", "personnel", deadline),
+             requirement("R-LATE", "personnel", deadline)],
+            {"personnel": "资料管理员"},
+            {"R-SAME": "2026-11-01T16:00:00+00:00", "R-LATE": "2026-11-01T16:30:00-04:00"})
+        self.assertEqual([r["late"] for r in rows], [False, True])
+        self.assertEqual(codes, ["DUE_AFTER_DEADLINE"])
+        self.assertEqual(rows[0]["due_time"], "2026-11-01T16:00:00+00:00")
+
     def test_template_mapping_only_judged_when_supported_columns_are_declared(self):
         unmapped, codes, version = check_template_columns(STANDARD_COLUMNS, None, None)
         self.assertEqual((unmapped, codes, version), ([], [], None))
@@ -335,6 +349,24 @@ class PipelineIntegrationTests(unittest.TestCase):
         self.write_assignment(self.configured(roles={"人员": "商务经理"}))
         with self.assertRaises(InputError):
             release(output, "DEMO reviewer")
+
+    def test_template_with_an_unmapped_extra_column_is_flagged_in_production(self):
+        # 验收交接第 1 点：模板新增列且没有映射时，生产链必须明确提示适配。
+        # 本用例由**当前实现**在真实生产链上跑出来（复用基座 TEMPLATE_MAPPING_UNSUPPORTED），
+        # 不是只凭旧代码存在就宣称覆盖。
+        manifest_path = self.source / "template-manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        self.assertEqual(manifest["version"], "1.0")
+        manifest["columns"] = manifest["columns"] + ["资格类型"]
+        manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        output, values = self.generate()
+        matrix = values["M07"]
+        self.assertEqual(matrix["processing_status"], "BLOCKED")
+        self.assertIn("TEMPLATE_MAPPING_UNSUPPORTED", {i["code"] for i in matrix["issues"]})
+        # 映射关系本身仍完整保留，修好模板后无需重跑上游
+        self.assertEqual(len(matrix["data"]["responses"]), 8)
+        self.assertTrue(all(r["requirement_ids"] for r in matrix["data"]["responses"]))
+        self.assertFalse((output / "personnel-chapter.docx").exists())
 
 
 if __name__ == "__main__":
